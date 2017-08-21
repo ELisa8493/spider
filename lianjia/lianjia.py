@@ -7,24 +7,32 @@ import requests
 import scrapy
 from bs4 import BeautifulSoup
 
-from lianjia.items import LianjiaItem
+from items import LianjiaItem
+from helper.transCookie import transCookie
 
+cookie_str = 'lianjia_uuid=f56fda39-e0f9-4bf4-aceb-aeb8bb6ff179; gr_user_id=49a62d12-07a6-4590-9610-8ab94cca89e8; UM_distinctid=15da14b2d8379c-0cacf1d2dd387d-38750f56-1fa400-15da14b2d84727; _jzqy=1.1501649645.1501722580.1.jzqsr=baidu|jzqct=%E9%93%BE%E5%AE%B6.-; select_city=510100; _jzqckmp=1; _jzqx=1.1502934514.1502934514.1.jzqsr=captcha%2Elianjia%2Ecom|jzqct=/.-; all-lj=6341ae6e32895385b04aae0cf3d794b0; gr_session_id_a1a50f141657a94e=bb4983a3-a7c4-40c0-b988-b420fbcb0c7c; Hm_lvt_9152f8221cb6243a53c83b956842be8a=1501722579,1502871254,1502934514,1502952920; Hm_lpvt_9152f8221cb6243a53c83b956842be8a=1502952931; CNZZDATA1253492306=2124281406-1501648005-null%7C1502950619; _smt_uid=59815aec.46e66fb1; CNZZDATA1254525948=1858624088-1501647278-null%7C1502952507; CNZZDATA1255633284=298962160-1501646323-null%7C1502951659; CNZZDATA1255604082=498907718-1501645227-null%7C1502949428; _qzja=1.196317582.1501649645070.1502934513969.1502952919902.1502952919902.1502952932268.0.0.0.31.5; _qzjb=1.1502952919901.2.0.0.0; _qzjc=1; _qzjto=17.2.0; _jzqa=1.3601391487608853500.1501649645.1502934514.1502952920.5; _jzqc=1; _jzqb=1.2.10.1502952920.1; _ga=GA1.2.401334872.1501649648; _gid=GA1.2.141856389.1502871258; lianjia_ssid=c09446af-f271-474e-9157-1db1737f7d19'
+trans = transCookie(cookie_str)
 
 class LianjiaSpider(scrapy.Spider):
     name = 'lianjiaspider'
-    redis_key = 'lianjiaspider:urls'
     start_urls = 'http://cd.lianjia.com/ershoufang/'
+    cookie = trans.stringToDict()
+    headers = {
+        'Host': "cd.lianjia.com",
+        'Connection': 'keep-alive',
+        'Cache-Control': 'max-age=0',
+        'Upgrade-Insecure-Requests': '1',
+        'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36",
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'DNT': '1',
+        'Accept-Encoding': 'gzip, deflate, sdch, br',
+        'Accept-Language': 'en-US,en;q=0.8,zh;q=0.6',
+    }
 
     def start_requests(self):
-        user_agent = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.22 \
-                         Safari/537.36 SE 2.X MetaSr 1.0'
-        headers = {'User-Agent': user_agent}
-        yield scrapy.Request(url=self.start_urls, headers=headers, method='GET', callback=self.parse)
+        yield scrapy.Request(url=self.start_urls, headers=self.headers, method='GET', cookies=self.cookie, callback=self.parse)
 
     def parse(self, response):
-        user_agent = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/49.0.2623.22 \
-                                 Safari/537.36 SE 2.X MetaSr 1.0'
-        headers = {'User-Agent': user_agent}
         body = response.body.decode('utf-8')
         soup = BeautifulSoup(body)
         area_div = soup.select('div[data-role="ershoufang"]')
@@ -35,7 +43,8 @@ class LianjiaSpider(scrapy.Spider):
                 area_pin = area['href'].split('/')[2]   # 拼音
                 area_url = 'http://cd.lianjia.com/ershoufang/{}/'.format(area_pin)
                 print(area_url)
-                yield scrapy.Request(url=area_url, headers=headers, callback=self.detail_url, meta={"id1":area_han,"id2":area_pin} )
+                time.sleep(5)
+                yield scrapy.Request(url=area_url, headers=self.headers, cookies=self.cookie, callback=self.detail_url, meta={"id1": area_han, "id2": area_pin} )
             except Exception:
                 pass
 
@@ -54,9 +63,9 @@ class LianjiaSpider(scrapy.Spider):
     def detail_url(self, response):
         for i in range(1, 101):
             url = 'http://cd.lianjia.com/ershoufang/{}/pg{}/'.format(response.meta["id2"], str(1))
-            time.sleep(2)
+            time.sleep(5)
             try:
-                contents = requests.get(url)
+                contents = requests.get(url, headers=self.headers, cookies=self.cookie)
                 body = contents.content.decode('utf-8')
                 soup = BeautifulSoup(body)
                 house_ul = soup.find('ul', 'sellListContent')
