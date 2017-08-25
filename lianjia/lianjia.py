@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import re
 import time
 
@@ -10,7 +9,7 @@ from bs4 import BeautifulSoup
 from items import LianjiaItem
 from helper.transCookie import transCookie
 
-cookie_str = 'lianjia_uuid=f56fda39-e0f9-4bf4-aceb-aeb8bb6ff179; gr_user_id=49a62d12-07a6-4590-9610-8ab94cca89e8; UM_distinctid=15da14b2d8379c-0cacf1d2dd387d-38750f56-1fa400-15da14b2d84727; _jzqy=1.1501649645.1501722580.1.jzqsr=baidu|jzqct=%E9%93%BE%E5%AE%B6.-; select_city=510100; _jzqckmp=1; _jzqx=1.1502934514.1502934514.1.jzqsr=captcha%2Elianjia%2Ecom|jzqct=/.-; all-lj=6341ae6e32895385b04aae0cf3d794b0; gr_session_id_a1a50f141657a94e=bb4983a3-a7c4-40c0-b988-b420fbcb0c7c; Hm_lvt_9152f8221cb6243a53c83b956842be8a=1501722579,1502871254,1502934514,1502952920; Hm_lpvt_9152f8221cb6243a53c83b956842be8a=1502952931; CNZZDATA1253492306=2124281406-1501648005-null%7C1502950619; _smt_uid=59815aec.46e66fb1; CNZZDATA1254525948=1858624088-1501647278-null%7C1502952507; CNZZDATA1255633284=298962160-1501646323-null%7C1502951659; CNZZDATA1255604082=498907718-1501645227-null%7C1502949428; _qzja=1.196317582.1501649645070.1502934513969.1502952919902.1502952919902.1502952932268.0.0.0.31.5; _qzjb=1.1502952919901.2.0.0.0; _qzjc=1; _qzjto=17.2.0; _jzqa=1.3601391487608853500.1501649645.1502934514.1502952920.5; _jzqc=1; _jzqb=1.2.10.1502952920.1; _ga=GA1.2.401334872.1501649648; _gid=GA1.2.141856389.1502871258; lianjia_ssid=c09446af-f271-474e-9157-1db1737f7d19'
+cookie_str = 'lianjia_uuid=f56fda39-e0f9-4bf4-aceb-aeb8bb6ff179; gr_user_id=49a62d12-07a6-4590-9610-8ab94cca89e8; UM_distinctid=15da14b2d8379c-0cacf1d2dd387d-38750f56-1fa400-15da14b2d84727; _jzqy=1.1501649645.1501722580.1.jzqsr=baidu|jzqct=%E9%93%BE%E5%AE%B6.-; _jzqx=1.1502934514.1502934514.1.jzqsr=captcha%2Elianjia%2Ecom|jzqct=/.-; select_city=510100; all-lj=0f6b18681ea67d53fa44b1df18064287; _jzqckmp=1; _smt_uid=59815aec.46e66fb1; gr_session_id_a1a50f141657a94e=e66b3bfb-5b3c-4106-a393-f8dbc1b0ca11; CNZZDATA1253492306=2124281406-1501648005-null%7C1503558640; Hm_lvt_9152f8221cb6243a53c83b956842be8a=1502871254,1502934514,1502952920,1503555027; Hm_lpvt_9152f8221cb6243a53c83b956842be8a=1503560620; CNZZDATA1254525948=1858624088-1501647278-null%7C1503557179; CNZZDATA1255633284=298962160-1501646323-null%7C1503557380; CNZZDATA1255604082=498907718-1501645227-null%7C1503555880; _qzja=1.196317582.1501649645070.1503555027518.1503560616864.1503560616864.1503560620186.0.0.0.44.7; _qzjb=1.1503560616864.2.0.0.0; _qzjc=1; _qzjto=8.2.0; _jzqa=1.3601391487608853500.1501649645.1503555027.1503560617.7; _jzqc=1; _jzqb=1.2.10.1503560617.1; _ga=GA1.2.401334872.1501649648; _gid=GA1.2.608001822.1503555030; lianjia_ssid=0b7105ec-a14d-46f9-a7c6-e29fae3f5cd4'
 trans = transCookie(cookie_str)
 
 class LianjiaSpider(scrapy.Spider):
@@ -43,28 +42,37 @@ class LianjiaSpider(scrapy.Spider):
                 area_pin = area['href'].split('/')[2]   # 拼音
                 area_url = 'http://cd.lianjia.com/ershoufang/{}/'.format(area_pin)
                 print(area_url)
-                time.sleep(5)
                 yield scrapy.Request(url=area_url, headers=self.headers, cookies=self.cookie, callback=self.detail_url, meta={"id1": area_han, "id2": area_pin} )
             except Exception:
                 pass
 
-    # def get_latitude(self,url):  # 进入每个房源链接抓经纬度
-    #     p = requests.get(url)
-    #     etree = ElementTree()
-    #     contents = etree.parse(p.content.decode('utf-8'))
-    #     latitude = contents.xpath('/ html / body / script[19]/text()').pop()
-    #     time.sleep(3)
-    #     regex = '''resblockPosition(.+)'''
-    #     items = re.search(regex, latitude)
-    #     content = items.group()[:-1]  # 经纬度
-    #     longitude_latitude = content.split(':')[1]
-    #     return longitude_latitude[1:-1]
+    def get_detail_info(self, item, url):  # 进入每个房源链接抓经纬度
+        contents = requests.get(url, headers=self.headers, cookies=self.cookie)
+        body = contents.content.decode('utf-8')
+        soup = BeautifulSoup(body)
+        transaction_div = soup.find('div', 'transaction')
+        transaction_lis = transaction_div.find_all('li')
+        item['last_buy_time'] = transaction_lis[2].text[4:]
+        item['publish_time'] = transaction_lis[0].text[4:]
+
+        regex = '''resblockPosition(.+)'''
+        items = re.search(regex, body)
+        content = items.group()[:-1]  # 经纬度
+        longitude_latitude = content.split(':')[1]
+        item['location'] = longitude_latitude[1:-1]
+
+        id_regex = '''houseId(.+)'''
+        ids = re.search(id_regex, body)
+        house_id_str = ids.group()[:-1]  # house id
+        house_id = house_id_str.split(':')[1]
+        item['house_id'] = house_id[1:-1]
 
     def detail_url(self, response):
         for i in range(1, 101):
             url = 'http://cd.lianjia.com/ershoufang/{}/pg{}/'.format(response.meta["id2"], str(1))
-            time.sleep(5)
+            time.sleep(2)
             try:
+                print('当前正在爬取：{}'.format(url))
                 contents = requests.get(url, headers=self.headers, cookies=self.cookie)
                 body = contents.content.decode('utf-8')
                 soup = BeautifulSoup(body)
@@ -74,7 +82,7 @@ class LianjiaSpider(scrapy.Spider):
                     try:
                         item = LianjiaItem()
                         item['title'] = house.find('div', 'title').a.string
-                        # item['community'] = house.xpath('div[1]/div[2]/div/a/text()').pop()
+                        item['community'] = house.find('div', 'houseInfo').text.split('|')[0]
                         item['model'] = house.find('div', 'houseInfo').text.split('|')[1]
 
                         area_str = house.find('div', 'houseInfo').text.split('|')[2]
@@ -92,7 +100,6 @@ class LianjiaSpider(scrapy.Spider):
                         watch_num_match = re.findall(r'\d+', watch_num_str)
                         item['watch_num'] = watch_num_match[0]
 
-                        item['time'] = house.find('div', 'followInfo').text.split('/')[2]
                         item['price'] = float(house.find('div', 'totalPrice').span.string) * 10000
 
                         average_price_str = house.find('div', 'unitPrice').span.string
@@ -101,9 +108,9 @@ class LianjiaSpider(scrapy.Spider):
 
                         item['link'] = house.find('div', 'title').a['href']
                         item['city'] = response.meta["id1"]
-                        # self.url_detail = house.xpath('div[1]/div[1]/a/@href').pop()
-                        # item['Latitude'] = self.get_latitude(self.url_detail)
-                    except Exception:
+                        self.get_detail_info(item, item['link'])
+                    except Exception as e:
+                        print(str(e))
                         pass
                     yield item
             except Exception:
