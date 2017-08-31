@@ -40,14 +40,9 @@ class LianjiaSpider(scrapy.Spider):
             try:
                 area_han = area.string    # 地点
                 area_pin = area['href'].split('/')[2]   # 拼音
-                area_page1_url = 'http://cd.lianjia.com/ershoufang/{}/'.format(area_pin)
 
-                # 首页
-                yield scrapy.Request(url=area_page1_url, headers=self.headers, cookies=self.cookie, callback=self.get_pg_info, meta={"id1": area_han, "id2": area_pin})
-
-                # 剩下的页面
-                for i in range(2, 101):
-                    area_pages_url = 'http://cd.lianjia.com/ershoufang/{}/pg{}/'.format(area_pin, str(1))
+                for i in range(1, 101):
+                    area_pages_url = 'http://cd.lianjia.com/ershoufang/{}/pg{}/'.format(area_pin, str(i))
                     yield scrapy.Request(url=area_pages_url, headers=self.headers, cookies=self.cookie, callback=self.get_pg_info, meta={"id1": area_han, "id2": area_pin})
             except Exception as e:
                 print(str(e))
